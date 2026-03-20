@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Owner Dashboard — NextStep{% endblock %}
+{% block page_title %}Owner Dashboard{% endblock %}
+
+{% block sidebar_nav %}
+<div class="sidebar-section">
+  <div class="sidebar-section-label">Overview</div>
+  <a href="{{ url_for('owner.dashboard') }}" class="sidebar-link active"><span class="icon">📊</span> Dashboard</a>
+</div>
+<div class="sidebar-section">
+  <div class="sidebar-section-label">Management</div>
+  <a href="{{ url_for('owner.tenants') }}" class="sidebar-link"><span class="icon">🏢</span> Companies</a>
+  <a href="{{ url_for('owner.users') }}" class="sidebar-link">
+    <span class="icon">👥</span> Users
+    {% if pending_users > 0 %}<span class="sidebar-badge">{{ pending_users }}</span>{% endif %}
+  </a>
+  <a href="{{ url_for('owner.jobs') }}" class="sidebar-link"><span class="icon">⚙️</span> All Jobs</a>
+</div>
+<div class="sidebar-section">
+  <div class="sidebar-section-label">Finance</div>
+  <a href="{{ url_for('owner.usage') }}" class="sidebar-link"><span class="icon">🪙</span> Token Usage</a>
+  <a href="{{ url_for('owner.billing') }}" class="sidebar-link"><span class="icon">💳</span> Billing</a>
+</div>
+<div class="sidebar-section">
+  <div class="sidebar-section-label">System</div>
+  <a href="{{ url_for('owner.system') }}" class="sidebar-link"><span class="icon">🖥️</span> System Health</a>
+  <a href="{{ url_for('owner.settings') }}" class="sidebar-link"><span class="icon">⚙️</span> Settings</a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Stats -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-label">Active Companies</div>
+    <div class="stat-value blue">{{ active_tenants }}</div>
+    <div class="stat-sub">{{ total_tenants }} total registered</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Active Users</div>
+    <div class="stat-value green">{{ active_users }}</div>
+    <div class="stat-sub">{% if pending_users > 0 %}<span style="color:var(--warn)">{{ pending_users }} pending approval</span>{% else %}All users active{% endif %}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Jobs Today</div>
+    <div class="stat-value">{{ jobs_today }}</div>
+    <div class="stat-sub">{{ jobs_this_month }} this month</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Tokens Used Today</div>
+    <div class="stat-value amber">{{ tokens_used_today }}</div>
+    <div class="stat-sub">{{ tokens_used_month }} this month</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;">
+
+  <!-- Pending approvals -->
+  <div class="card">
+    <div class="section-head">
+      <div><div class="section-title">Pending Approvals</div><div class="section-sub">New registrations awaiting activation</div></div>
+      <a href="{{ url_for('owner.users') }}" class="btn btn-ghost btn-sm">View all</a>
+    </div>
+    {% if recent_registrations %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Company</th><th>Registered</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for user in recent_registrations %}
+          <tr>
+            <td>{{ user.name }}</td>
+            <td>{{ user.tenant.company_name }}</td>
+            <td style="color:var(--muted);font-size:12px;">{{ user.created_at.strftime('%d %b %Y') }}</td>
+            <td>
+              {% if not user.active %}
+              <form method="POST" action="{{ url_for('owner.activate_user', user_id=user.id) }}" style="display:inline;">
+                <button type="submit" class="btn btn-success btn-sm">Activate</button>
+              </form>
+              {% else %}
+              <span class="badge badge-green">Active</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state"><div class="icon">✅</div><p>No pending registrations</p></div>
+    {% endif %}
+  </div>
+
+  <!-- Recent Jobs -->
+  <div class="card">
+    <div class="section-head">
+      <div><div class="section-title">Recent Jobs</div><div class="section-sub">Latest activity across all companies</div></div>
+      <a href="{{ url_for('owner.jobs') }}" class="btn btn-ghost btn-sm">View all</a>
+    </div>
+    {% if recent_jobs %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Company</th><th>Tool</th><th>Status</th><th>Date</th></tr></thead>
+        <tbody>
+          {% for job, user, tenant, tool in recent_jobs %}
+          <tr>
+            <td>{{ tenant.company_name }}</td>
+            <td>{{ tool.display_name if tool else '—' }}</td>
+            <td>
+              {% if job.status == 'completed' %}<span class="badge badge-green">Done</span>
+              {% elif job.status == 'running' %}<span class="badge badge-blue">Running</span>
+              {% elif job.status == 'failed' %}<span class="badge badge-red">Failed</span>
+              {% else %}<span class="badge badge-grey">Queued</span>{% endif %}
+            </td>
+            <td style="color:var(--muted);font-size:12px;">{{ job.created_at.strftime('%d %b') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state"><div class="icon">📋</div><p>No jobs yet</p></div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Quick links -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;">
+  <a href="{{ url_for('owner.tenants') }}" class="card card-sm" style="text-decoration:none;transition:border-color .2s;" onmouseover="this.style.borderColor='rgba(37,99,235,.35)'" onmouseout="this.style.borderColor='rgba(255,255,255,.10)'">
+    <div style="font-size:24px;margin-bottom:8px;">🏢</div>
+    <div style="font-size:14px;font-weight:600;">Manage Companies</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:3px;">{{ total_tenants }} registered</div>
+  </a>
+  <a href="{{ url_for('owner.users') }}" class="card card-sm" style="text-decoration:none;transition:border-color .2s;" onmouseover="this.style.borderColor='rgba(37,99,235,.35)'" onmouseout="this.style.borderColor='rgba(255,255,255,.10)'">
+    <div style="font-size:24px;margin-bottom:8px;">👥</div>
+    <div style="font-size:14px;font-weight:600;">Manage Users</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:3px;">{{ total_users }} total</div>
+  </a>
+  <a href="{{ url_for('owner.usage') }}" class="card card-sm" style="text-decoration:none;transition:border-color .2s;" onmouseover="this.style.borderColor='rgba(37,99,235,.35)'" onmouseout="this.style.borderColor='rgba(255,255,255,.10)'">
+    <div style="font-size:24px;margin-bottom:8px;">🪙</div>
+    <div style="font-size:14px;font-weight:600;">Token Usage</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:3px;">{{ tokens_used_month }} this month</div>
+  </a>
+  <a href="{{ url_for('owner.billing') }}" class="card card-sm" style="text-decoration:none;transition:border-color .2s;" onmouseover="this.style.borderColor='rgba(37,99,235,.35)'" onmouseout="this.style.borderColor='rgba(255,255,255,.10)'">
+    <div style="font-size:24px;margin-bottom:8px;">💳</div>
+    <div style="font-size:14px;font-weight:600;">Billing</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:3px;">Subscriptions</div>
+  </a>
+</div>
+{% endblock %}

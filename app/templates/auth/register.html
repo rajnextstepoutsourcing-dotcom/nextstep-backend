@@ -1,0 +1,100 @@
+<!-- register.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Register — NextStep</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#070a10;--card:#0b1426;--border:rgba(255,255,255,.10);--text:#f2f6ff;--muted:#a9b6cc;--muted2:#6b7fa0;--primary:#2563eb;--primary2:#3b82f6;--glow:rgba(37,99,235,.35);--ok:#22c55e;--radius-sm:10px;}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;}
+    body::after{content:'';position:fixed;top:-160px;left:50%;transform:translateX(-50%);width:800px;height:600px;background:radial-gradient(ellipse,rgba(37,99,235,.13) 0%,transparent 65%);pointer-events:none;z-index:0;}
+    nav{position:relative;z-index:10;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(7,10,16,.85);backdrop-filter:blur(18px);}
+    .nav-inner{max-width:1180px;margin:0 auto;padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between;}
+    .logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+    .logo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--primary),var(--primary2));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 18px var(--glow);}
+    .logo-text{font-family:'Sora',system-ui,sans-serif;font-size:18px;font-weight:700;color:var(--text);}
+    .logo-text span{color:var(--primary2);}
+    .nav-back{font-size:13px;color:var(--muted);text-decoration:none;padding:7px 14px;border-radius:10px;border:1px solid var(--border);}
+    main{flex:1;display:flex;justify-content:center;padding:48px 24px 64px;position:relative;z-index:1;}
+    .wrap{width:100%;max-width:520px;}
+    .header{text-align:center;margin-bottom:28px;}
+    .logo-big{width:52px;height:52px;background:linear-gradient(135deg,var(--primary),var(--primary2));border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;margin:0 auto 16px;box-shadow:0 0 28px var(--glow);}
+    .header h1{font-family:'Sora',system-ui,sans-serif;font-size:26px;font-weight:800;letter-spacing:-.03em;margin-bottom:6px;}
+    .header p{font-size:14px;color:var(--muted);}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:32px;box-shadow:0 24px 60px rgba(0,0,0,.45);}
+    .flash-wrap{margin-bottom:14px;}
+    .flash{padding:11px 14px;border-radius:10px;font-size:13px;border:1px solid transparent;margin-bottom:6px;}
+    .flash-error{background:rgba(239,68,68,.10);border-color:rgba(239,68,68,.25);color:#fca5a5;}
+    .flash-success{background:rgba(34,197,94,.10);border-color:rgba(34,197,94,.25);color:#86efac;}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    @media(max-width:500px){.grid2{grid-template-columns:1fr;}}
+    .fg{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;}
+    .fg label{font-size:13px;font-weight:500;color:var(--muted);}
+    .iw{position:relative;}
+    .ii{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--muted2);pointer-events:none;}
+    .fg input{width:100%;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.12);border-radius:var(--radius-sm);padding:11px 14px 11px 38px;color:var(--text);font-size:13px;font-family:'Inter',system-ui,sans-serif;outline:none;transition:border-color .15s,box-shadow .15s;}
+    .fg input:focus{border-color:var(--primary2);box-shadow:0 0 0 3px rgba(37,99,235,.20);}
+    .fg input::placeholder{color:var(--muted2);}
+    .pw-btn{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted2);cursor:pointer;font-size:13px;padding:3px;}
+    .divider{display:flex;align-items:center;gap:10px;margin:14px 0;}
+    .divider-line{flex:1;height:1px;background:var(--border);}
+    .divider span{font-size:11px;color:var(--muted2);text-transform:uppercase;letter-spacing:.07em;font-weight:600;}
+    .tools-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+    .tool-cb{display:flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;font-size:13px;color:var(--muted);transition:border-color .15s,background .15s;}
+    .tool-cb:has(input:checked){border-color:rgba(37,99,235,.45);background:rgba(37,99,235,.10);color:var(--text);}
+    .tool-cb input{accent-color:var(--primary2);width:13px;height:13px;}
+    .terms-wrap{display:flex;align-items:flex-start;gap:9px;margin-bottom:18px;font-size:13px;color:var(--muted);line-height:1.5;}
+    .terms-wrap input{accent-color:var(--primary2);margin-top:2px;flex-shrink:0;}
+    .terms-wrap a{color:var(--primary2);text-decoration:none;}
+    .btn-submit{width:100%;background:var(--primary);border:none;color:#fff;padding:13px;border-radius:var(--radius-sm);font-size:15px;font-weight:600;cursor:pointer;font-family:'Inter',system-ui,sans-serif;transition:filter .15s,box-shadow .15s;}
+    .btn-submit:hover{filter:brightness(1.1);box-shadow:0 8px 24px var(--glow);}
+    .foot{text-align:center;margin-top:18px;font-size:13px;color:var(--muted);}
+    .foot a{color:var(--primary2);text-decoration:none;font-weight:500;}
+    footer{border-top:1px solid rgba(255,255,255,.06);padding:16px 24px;text-align:center;}
+    footer p{font-size:12px;color:var(--muted2);}
+    footer a{color:var(--muted);text-decoration:none;}
+  </style>
+</head>
+<body>
+  <nav><div class="nav-inner">
+    <a href="/" class="logo"><div class="logo-icon">⚡</div><span class="logo-text">Next<span>Step</span></span></a>
+    <a href="{{ url_for('auth.login') }}" class="nav-back">← Back to Login</a>
+  </div></nav>
+  <main><div class="wrap">
+    <div class="header">
+      <div class="logo-big">⚡</div>
+      <h1>Request access</h1>
+      <p>Create your NextStep account — activated within one business day.</p>
+    </div>
+    <div class="card">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}<div class="flash-wrap">{% for cat,msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}</div>{% endif %}
+      {% endwith %}
+      <form method="POST" action="{{ url_for('auth.register') }}">
+        <div class="grid2">
+          <div class="fg"><label>Full Name *</label><div class="iw"><span class="ii">👤</span><input type="text" name="full_name" placeholder="Jane Smith" required value="{{ request.form.get('full_name','') }}"/></div></div>
+          <div class="fg"><label>Company Name *</label><div class="iw"><span class="ii">🏢</span><input type="text" name="company" placeholder="Your Agency Ltd" required value="{{ request.form.get('company','') }}"/></div></div>
+          <div class="fg"><label>Work Email *</label><div class="iw"><span class="ii">✉</span><input type="email" name="email" placeholder="you@company.co.uk" required value="{{ request.form.get('email','') }}"/></div></div>
+          <div class="fg"><label>Phone *</label><div class="iw"><span class="ii">📞</span><input type="tel" name="phone" placeholder="+44 7700 900000" required value="{{ request.form.get('phone','') }}"/></div></div>
+          <div class="fg"><label>Password *</label><div class="iw"><span class="ii">🔒</span><input type="password" id="pw1" name="password" placeholder="Min 8 characters" required autocomplete="new-password"/><button type="button" class="pw-btn" onclick="t('pw1',this)">👁</button></div></div>
+          <div class="fg"><label>Confirm Password *</label><div class="iw"><span class="ii">🔒</span><input type="password" id="pw2" name="confirm_password" placeholder="Repeat password" required autocomplete="new-password"/><button type="button" class="pw-btn" onclick="t('pw2',this)">👁</button></div></div>
+        </div>
+        <div class="divider"><div class="divider-line"></div><span>Tools interested in</span><div class="divider-line"></div></div>
+        <div class="tools-grid">
+          <label class="tool-cb"><input type="checkbox" name="tools" value="NMC"/> 🏥 NMC Check</label>
+          <label class="tool-cb"><input type="checkbox" name="tools" value="DBS"/> 🔍 DBS Check</label>
+          <label class="tool-cb"><input type="checkbox" name="tools" value="RTW"/> 🛂 Right to Work</label>
+          <label class="tool-cb"><input type="checkbox" name="tools" value="Checklist"/> ✅ Checklist</label>
+        </div>
+        <div class="terms-wrap"><input type="checkbox" required/><label>I agree to the <a href="/terms" target="_blank">Terms of Service</a> and <a href="/privacy-policy" target="_blank">Privacy Policy</a>.</label></div>
+        <button type="submit" class="btn-submit">Create Account</button>
+      </form>
+    </div>
+    <div class="foot">Already have an account? <a href="{{ url_for('auth.login') }}">Log in</a></div>
+  </div></main>
+  <footer><p>© 2026 NextStep Automation Ltd · <a href="/privacy-policy">Privacy</a> · <a href="/terms">Terms</a></p></footer>
+  <script>function t(id,btn){const i=document.getElementById(id);i.type=i.type==='password'?'text':'password';btn.textContent=i.type==='text'?'🙈':'👁';}</script>
+</body>
+</html>

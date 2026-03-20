@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Companies — NextStep{% endblock %}
+{% block page_title %}Companies{% endblock %}
+{% block sidebar_nav %}
+<div class="sidebar-section">
+  <a href="{{ url_for('owner.dashboard') }}" class="sidebar-link"><span class="icon">📊</span> Dashboard</a>
+</div>
+<div class="sidebar-section">
+  <div class="sidebar-section-label">Management</div>
+  <a href="{{ url_for('owner.tenants') }}" class="sidebar-link active"><span class="icon">🏢</span> Companies</a>
+  <a href="{{ url_for('owner.users') }}" class="sidebar-link"><span class="icon">👥</span> Users</a>
+  <a href="{{ url_for('owner.jobs') }}" class="sidebar-link"><span class="icon">⚙️</span> All Jobs</a>
+</div>
+<div class="sidebar-section">
+  <div class="sidebar-section-label">Finance</div>
+  <a href="{{ url_for('owner.usage') }}" class="sidebar-link"><span class="icon">🪙</span> Token Usage</a>
+  <a href="{{ url_for('owner.billing') }}" class="sidebar-link"><span class="icon">💳</span> Billing</a>
+</div>
+<div class="sidebar-section">
+  <div class="sidebar-section-label">System</div>
+  <a href="{{ url_for('owner.system') }}" class="sidebar-link"><span class="icon">🖥️</span> System Health</a>
+  <a href="{{ url_for('owner.settings') }}" class="sidebar-link"><span class="icon">⚙️</span> Settings</a>
+</div>
+{% endblock %}
+{% block content %}
+<div class="card" style="margin-bottom:18px;">
+  <form method="GET" style="display:flex;gap:10px;flex-wrap:wrap;">
+    <input name="search" value="{{ search }}" placeholder="Search company..." class="form-input" style="max-width:260px;"/>
+    <select name="status" class="form-input" style="max-width:160px;">
+      <option value="">All statuses</option>
+      <option value="active" {% if status_filter=='active' %}selected{% endif %}>Active</option>
+      <option value="pending" {% if status_filter=='pending' %}selected{% endif %}>Pending</option>
+      <option value="suspended" {% if status_filter=='suspended' %}selected{% endif %}>Suspended</option>
+    </select>
+    <button type="submit" class="btn btn-primary">Filter</button>
+    <a href="{{ url_for('owner.tenants') }}" class="btn btn-ghost">Clear</a>
+  </form>
+</div>
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Company</th><th>Status</th><th>Plan</th><th>Tokens</th><th>Users</th><th>Registered</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for tenant in tenants.items %}
+        <tr>
+          <td style="font-weight:600;">{{ tenant.company_name }}</td>
+          <td>
+            {% if tenant.status=='active' %}<span class="badge badge-green">Active</span>
+            {% elif tenant.status=='pending' %}<span class="badge badge-amber">Pending</span>
+            {% elif tenant.status=='suspended' %}<span class="badge badge-red">Suspended</span>
+            {% else %}<span class="badge badge-grey">{{ tenant.status }}</span>{% endif %}
+          </td>
+          <td style="color:var(--muted);">{{ tenant.plan_name }}</td>
+          <td><span style="color:var(--primary2);font-weight:600;">{{ tenant.tokens_remaining }}</span><span style="color:var(--muted);font-size:12px;"> / {{ tenant.tokens_total }}</span></td>
+          <td style="color:var(--muted);">{{ tenant.active_users_count }}</td>
+          <td style="color:var(--muted);font-size:12px;">{{ tenant.created_at.strftime('%d %b %Y') }}</td>
+          <td><a href="{{ url_for('owner.tenant_detail', tenant_id=tenant.id) }}" class="btn btn-ghost btn-sm">View</a></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:32px;">No companies found</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if tenants.pages > 1 %}
+  <div class="pagination">
+    <a href="{{ url_for('owner.tenants', page=tenants.prev_num, search=search, status=status_filter) }}" class="page-link {% if not tenants.has_prev %}disabled{% endif %}">‹</a>
+    {% for p in tenants.iter_pages() %}
+      {% if p %}<a href="{{ url_for('owner.tenants', page=p, search=search, status=status_filter) }}" class="page-link {% if p==tenants.page %}active{% endif %}">{{ p }}</a>
+      {% else %}<span style="color:var(--muted2);padding:0 4px;">…</span>{% endif %}
+    {% endfor %}
+    <a href="{{ url_for('owner.tenants', page=tenants.next_num, search=search, status=status_filter) }}" class="page-link {% if not tenants.has_next %}disabled{% endif %}">›</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

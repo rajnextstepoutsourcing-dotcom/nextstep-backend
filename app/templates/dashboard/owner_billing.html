@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Billing — NextStep{% endblock %}
+{% block page_title %}Billing & Revenue{% endblock %}
+{% block sidebar_nav %}
+<div class="sidebar-section"><a href="/owner/dashboard" class="sidebar-link"><span class="icon">📊</span> Dashboard</a></div>
+<div class="sidebar-section"><div class="sidebar-section-label">Management</div>
+<a href="/owner/tenants" class="sidebar-link"><span class="icon">🏢</span> Companies</a>
+<a href="/owner/users" class="sidebar-link"><span class="icon">👥</span> Users</a>
+<a href="/owner/jobs" class="sidebar-link"><span class="icon">⚙️</span> Jobs</a></div>
+<div class="sidebar-section"><div class="sidebar-section-label">Finance</div>
+<a href="/owner/usage" class="sidebar-link"><span class="icon">🪙</span> Token Usage</a>
+<a href="/owner/billing" class="sidebar-link active"><span class="icon">💳</span> Billing</a></div>
+<div class="sidebar-section"><div class="sidebar-section-label">System</div>
+<a href="/owner/system" class="sidebar-link"><span class="icon">🖥️</span> System Health</a>
+<a href="/owner/settings" class="sidebar-link"><span class="icon">⚙️</span> Settings</a></div>
+{% endblock %}
+{% block content %}
+<div class="stats-row" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px;">
+  <div class="stat-card"><div class="stat-label">Monthly Recurring Revenue</div><div class="stat-value green">£{{ "%.2f"|format(total_mrr) }}</div></div>
+  <div class="stat-card"><div class="stat-label">Active Subscriptions</div><div class="stat-value blue">{{ active_subs }}</div></div>
+  <div class="stat-card"><div class="stat-label">Cancelled</div><div class="stat-value red">{{ cancelled_subs }}</div></div>
+</div>
+<div class="card">
+  <div class="section-title" style="margin-bottom:16px;">All Subscriptions</div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Company</th><th>Plan</th><th>Price/Month</th><th>Tokens/Month</th><th>Status</th><th>Renewal</th><th>Action</th></tr></thead>
+    <tbody>
+      {% for sub, tenant in subscriptions %}
+      <tr>
+        <td style="font-weight:600;">{{ tenant.company_name }}</td>
+        <td>{{ sub.plan_name|capitalize }}</td>
+        <td style="color:var(--ok);font-weight:600;">£{{ "%.2f"|format(sub.monthly_price_gbp) }}</td>
+        <td style="color:var(--muted);">{{ sub.tokens_per_month }}</td>
+        <td>{% if sub.status=='active' %}<span class="badge badge-green">Active</span>{% elif sub.status=='cancelled' %}<span class="badge badge-red">Cancelled</span>{% else %}<span class="badge badge-grey">{{ sub.status }}</span>{% endif %}</td>
+        <td style="color:var(--muted);font-size:12px;">{{ sub.renewal_date.strftime('%d %b %Y') if sub.renewal_date else '—' }}</td>
+        <td><a href="/owner/tenants/{{ tenant.id }}" class="btn btn-ghost btn-sm">Edit</a></td>
+      </tr>
+      {% else %}<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:32px;">No subscriptions yet</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

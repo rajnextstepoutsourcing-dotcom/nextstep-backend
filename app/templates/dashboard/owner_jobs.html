@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}All Jobs — NextStep{% endblock %}
+{% block page_title %}All Jobs{% endblock %}
+{% block sidebar_nav %}
+<div class="sidebar-section"><a href="/owner/dashboard" class="sidebar-link"><span class="icon">📊</span> Dashboard</a></div>
+<div class="sidebar-section"><div class="sidebar-section-label">Management</div>
+<a href="/owner/tenants" class="sidebar-link"><span class="icon">🏢</span> Companies</a>
+<a href="/owner/users" class="sidebar-link"><span class="icon">👥</span> Users</a>
+<a href="/owner/jobs" class="sidebar-link active"><span class="icon">⚙️</span> Jobs</a></div>
+<div class="sidebar-section"><div class="sidebar-section-label">Finance</div>
+<a href="/owner/usage" class="sidebar-link"><span class="icon">🪙</span> Token Usage</a>
+<a href="/owner/billing" class="sidebar-link"><span class="icon">💳</span> Billing</a></div>
+<div class="sidebar-section"><div class="sidebar-section-label">System</div>
+<a href="/owner/system" class="sidebar-link"><span class="icon">🖥️</span> System Health</a>
+<a href="/owner/settings" class="sidebar-link"><span class="icon">⚙️</span> Settings</a></div>
+{% endblock %}
+{% block content %}
+<div class="card" style="margin-bottom:18px;">
+  <form method="GET" style="display:flex;gap:10px;flex-wrap:wrap;">
+    <select name="status" class="form-input" style="max-width:160px;">
+      <option value="">All statuses</option>
+      <option value="completed" {% if status_filter=='completed' %}selected{% endif %}>Completed</option>
+      <option value="running" {% if status_filter=='running' %}selected{% endif %}>Running</option>
+      <option value="failed" {% if status_filter=='failed' %}selected{% endif %}>Failed</option>
+      <option value="queued" {% if status_filter=='queued' %}selected{% endif %}>Queued</option>
+    </select>
+    <select name="tool" class="form-input" style="max-width:160px;">
+      <option value="">All tools</option>
+      {% for t in tools %}<option value="{{ t.slug }}" {% if tool_filter==t.slug %}selected{% endif %}>{{ t.display_name }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="btn btn-primary">Filter</button>
+    <a href="/owner/jobs" class="btn btn-ghost">Clear</a>
+  </form>
+</div>
+<div class="card">
+  <div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>Company</th><th>User</th><th>Tool</th><th>Items</th><th>Status</th><th>Date</th></tr></thead>
+    <tbody>
+      {% for job, user, tenant, tool in jobs.items %}
+      <tr>
+        <td style="color:var(--muted2);font-size:12px;">#{{ job.id }}</td>
+        <td style="font-weight:600;">{{ tenant.company_name }}</td>
+        <td style="color:var(--muted);">{{ user.name }}</td>
+        <td>{{ tool.display_name if tool else '—' }}</td>
+        <td style="color:var(--muted);">{{ job.successful_items }}/{{ job.total_items }}</td>
+        <td>
+          {% if job.status=='completed' %}<span class="badge badge-green">Done</span>
+          {% elif job.status=='running' %}<span class="badge badge-blue">Running</span>
+          {% elif job.status=='failed' %}<span class="badge badge-red">Failed</span>
+          {% else %}<span class="badge badge-grey">Queued</span>{% endif %}
+        </td>
+        <td style="color:var(--muted);font-size:12px;">{{ job.created_at.strftime('%d %b %Y %H:%M') }}</td>
+      </tr>
+      {% else %}<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:32px;">No jobs found</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

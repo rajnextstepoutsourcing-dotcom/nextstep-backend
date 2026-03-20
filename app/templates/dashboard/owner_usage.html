@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Token Usage — NextStep{% endblock %}
+{% block page_title %}Token Usage{% endblock %}
+{% block sidebar_nav %}
+<div class="sidebar-section"><a href="/owner/dashboard" class="sidebar-link"><span class="icon">📊</span> Dashboard</a></div>
+<div class="sidebar-section"><div class="sidebar-section-label">Management</div>
+<a href="/owner/tenants" class="sidebar-link"><span class="icon">🏢</span> Companies</a>
+<a href="/owner/users" class="sidebar-link"><span class="icon">👥</span> Users</a>
+<a href="/owner/jobs" class="sidebar-link"><span class="icon">⚙️</span> Jobs</a></div>
+<div class="sidebar-section"><div class="sidebar-section-label">Finance</div>
+<a href="/owner/usage" class="sidebar-link active"><span class="icon">🪙</span> Token Usage</a>
+<a href="/owner/billing" class="sidebar-link"><span class="icon">💳</span> Billing</a></div>
+<div class="sidebar-section"><div class="sidebar-section-label">System</div>
+<a href="/owner/system" class="sidebar-link"><span class="icon">🖥️</span> System Health</a>
+<a href="/owner/settings" class="sidebar-link"><span class="icon">⚙️</span> Settings</a></div>
+{% endblock %}
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;">
+  <div class="card">
+    <div class="section-title" style="margin-bottom:16px;">Usage by Company (This Month)</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Company</th><th>Allocated</th><th>Used Total</th><th>This Month</th></tr></thead>
+      <tbody>
+        {% for row in tenant_usage %}
+        <tr>
+          <td style="font-weight:600;">{{ row.company_name }}</td>
+          <td style="color:var(--muted);">{{ row.tokens_total }}</td>
+          <td style="color:var(--muted);">{{ row.tokens_used }}</td>
+          <td><span style="color:var(--primary2);font-weight:700;">{{ row.month_tokens }}</span></td>
+        </tr>
+        {% else %}<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px;">No usage data yet</td></tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+  <div class="card">
+    <div class="section-title" style="margin-bottom:16px;">Usage by Tool (This Month)</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Tool</th><th>Tokens Used</th></tr></thead>
+      <tbody>
+        {% for row in tool_usage %}
+        <tr>
+          <td style="font-weight:600;">{{ row.display_name }}</td>
+          <td><span style="color:var(--primary2);font-weight:700;">{{ row.total }}</span></td>
+        </tr>
+        {% else %}<tr><td colspan="2" style="text-align:center;color:var(--muted);padding:24px;">No usage data yet</td></tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+</div>
+<div class="card">
+  <div class="section-title" style="margin-bottom:16px;">Daily Token Usage (Last 30 Days)</div>
+  {% if daily_usage %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Date</th><th>Tokens Used</th></tr></thead>
+    <tbody>
+      {% for row in daily_usage %}
+      <tr>
+        <td style="color:var(--muted);">{{ row.day }}</td>
+        <td><span style="color:var(--primary2);font-weight:600;">{{ row.tokens }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <div class="empty-state"><div class="icon">🪙</div><p>No usage data yet</p></div>
+  {% endif %}
+</div>
+{% endblock %}

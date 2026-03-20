@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Settings — NextStep{% endblock %}
+{% block page_title %}Owner Settings{% endblock %}
+{% block sidebar_nav %}
+<div class="sidebar-section"><a href="/owner/dashboard" class="sidebar-link"><span class="icon">📊</span> Dashboard</a></div>
+<div class="sidebar-section"><div class="sidebar-section-label">Management</div>
+<a href="/owner/tenants" class="sidebar-link"><span class="icon">🏢</span> Companies</a>
+<a href="/owner/users" class="sidebar-link"><span class="icon">👥</span> Users</a>
+<a href="/owner/jobs" class="sidebar-link"><span class="icon">⚙️</span> Jobs</a></div>
+<div class="sidebar-section"><div class="sidebar-section-label">Finance</div>
+<a href="/owner/usage" class="sidebar-link"><span class="icon">🪙</span> Token Usage</a>
+<a href="/owner/billing" class="sidebar-link"><span class="icon">💳</span> Billing</a></div>
+<div class="sidebar-section"><div class="sidebar-section-label">System</div>
+<a href="/owner/system" class="sidebar-link"><span class="icon">🖥️</span> System Health</a>
+<a href="/owner/settings" class="sidebar-link active"><span class="icon">⚙️</span> Settings</a></div>
+{% endblock %}
+{% block content %}
+<div style="max-width:520px;">
+  <div class="card">
+    <div class="section-title" style="margin-bottom:6px;">Account</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:20px;">Logged in as {{ current_user.email }}</div>
+    <div class="divider"></div>
+    <div class="section-title" style="margin-bottom:16px;font-size:15px;">Change Password</div>
+    <form method="POST" action="/owner/settings">
+      <div class="form-group"><label>Current Password</label><input type="password" name="current_password" class="form-input" required/></div>
+      <div class="form-group"><label>New Password</label><input type="password" name="new_password" class="form-input" placeholder="Min 8 characters" required/></div>
+      <div class="form-group"><label>Confirm New Password</label><input type="password" name="confirm_password" class="form-input" required/></div>
+      <button type="submit" class="btn btn-primary" style="margin-top:6px;">Update Password</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

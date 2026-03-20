@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}System Health — NextStep{% endblock %}
+{% block page_title %}System Health{% endblock %}
+{% block sidebar_nav %}
+<div class="sidebar-section"><a href="/owner/dashboard" class="sidebar-link"><span class="icon">📊</span> Dashboard</a></div>
+<div class="sidebar-section"><div class="sidebar-section-label">Management</div>
+<a href="/owner/tenants" class="sidebar-link"><span class="icon">🏢</span> Companies</a>
+<a href="/owner/users" class="sidebar-link"><span class="icon">👥</span> Users</a>
+<a href="/owner/jobs" class="sidebar-link"><span class="icon">⚙️</span> Jobs</a></div>
+<div class="sidebar-section"><div class="sidebar-section-label">Finance</div>
+<a href="/owner/usage" class="sidebar-link"><span class="icon">🪙</span> Token Usage</a>
+<a href="/owner/billing" class="sidebar-link"><span class="icon">💳</span> Billing</a></div>
+<div class="sidebar-section"><div class="sidebar-section-label">System</div>
+<a href="/owner/system" class="sidebar-link active"><span class="icon">🖥️</span> System Health</a>
+<a href="/owner/settings" class="sidebar-link"><span class="icon">⚙️</span> Settings</a></div>
+{% endblock %}
+{% block content %}
+<div class="stats-row">
+  <div class="stat-card"><div class="stat-label">Total Jobs</div><div class="stat-value">{{ total_jobs }}</div></div>
+  <div class="stat-card"><div class="stat-label">Failed Jobs</div><div class="stat-value red">{{ failed_jobs }}</div></div>
+  <div class="stat-card"><div class="stat-label">Queued</div><div class="stat-value amber">{{ queued_jobs }}</div></div>
+  <div class="stat-card"><div class="stat-label">Running Now</div><div class="stat-value blue">{{ running_jobs }}</div></div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;">
+  <div class="card">
+    <div class="section-title" style="margin-bottom:14px;">Platform Stats</div>
+    <div style="display:flex;flex-direction:column;gap:12px;font-size:13px;">
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">Total Companies</span><span style="font-weight:600;">{{ total_tenants }}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">Total Users</span><span style="font-weight:600;">{{ total_users }}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">Total Tokens Processed</span><span style="font-weight:600;color:var(--primary2);">{{ total_usage }}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">Server Time (UTC)</span><span style="font-weight:600;">{{ now.strftime('%d %b %Y %H:%M') }}</span></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="section-title" style="margin-bottom:14px;">Job Success Rate</div>
+    {% if total_jobs > 0 %}
+    {% set success_rate = ((total_jobs - failed_jobs) / total_jobs * 100)|round(1) %}
+    <div style="font-family:'Sora',sans-serif;font-size:48px;font-weight:800;color:{% if success_rate >= 95 %}var(--ok){% elif success_rate >= 80 %}var(--warn){% else %}var(--danger){% endif %};">{{ success_rate }}<span style="font-size:24px;">%</span></div>
+    <div style="font-size:13px;color:var(--muted);margin-top:6px;">{{ total_jobs - failed_jobs }} of {{ total_jobs }} jobs completed successfully</div>
+    {% else %}
+    <div class="empty-state"><p>No jobs yet</p></div>
+    {% endif %}
+  </div>
+</div>
+<div class="card">
+  <div class="section-title" style="margin-bottom:14px;">Recent Failed Jobs</div>
+  {% if recent_failed %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>#</th><th>Tenant ID</th><th>Tool ID</th><th>Items Failed</th><th>Date</th></tr></thead>
+    <tbody>
+      {% for job in recent_failed %}
+      <tr>
+        <td style="color:var(--muted2);">#{{ job.id }}</td>
+        <td style="color:var(--muted);">{{ job.tenant_id }}</td>
+        <td style="color:var(--muted);">{{ job.tool_id or '—' }}</td>
+        <td><span style="color:var(--danger);">{{ job.failed_items }}</span></td>
+        <td style="color:var(--muted);font-size:12px;">{{ job.created_at.strftime('%d %b %Y %H:%M') }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <div class="empty-state"><div class="icon">✅</div><p>No failed jobs — all clear</p></div>
+  {% endif %}
+</div>
+{% endblock %}

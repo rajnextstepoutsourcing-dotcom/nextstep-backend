@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}{{ tenant.company_name }} — NextStep{% endblock %}
+{% block page_title %}{{ tenant.company_name }}{% endblock %}
+{% block sidebar_nav %}
+<div class="sidebar-section"><a href="/owner/dashboard" class="sidebar-link"><span class="icon">📊</span> Dashboard</a></div>
+<div class="sidebar-section"><div class="sidebar-section-label">Management</div>
+<a href="/owner/tenants" class="sidebar-link active"><span class="icon">🏢</span> Companies</a>
+<a href="/owner/users" class="sidebar-link"><span class="icon">👥</span> Users</a>
+<a href="/owner/jobs" class="sidebar-link"><span class="icon">⚙️</span> Jobs</a></div>
+<div class="sidebar-section"><div class="sidebar-section-label">Finance</div>
+<a href="/owner/usage" class="sidebar-link"><span class="icon">🪙</span> Token Usage</a>
+<a href="/owner/billing" class="sidebar-link"><span class="icon">💳</span> Billing</a></div>
+<div class="sidebar-section"><div class="sidebar-section-label">System</div>
+<a href="/owner/system" class="sidebar-link"><span class="icon">🖥️</span> System Health</a>
+<a href="/owner/settings" class="sidebar-link"><span class="icon">⚙️</span> Settings</a></div>
+{% endblock %}
+{% block content %}
+<div style="margin-bottom:16px;"><a href="/owner/tenants" class="btn btn-ghost btn-sm">← Back to Companies</a></div>
+<div class="stats-row" style="grid-template-columns:repeat(4,1fr);">
+  <div class="stat-card"><div class="stat-label">Status</div>
+    <div class="stat-value {% if tenant.status=='active' %}green{% elif tenant.status=='suspended' %}red{% else %}amber{% endif %}">{{ tenant.status|capitalize }}</div></div>
+  <div class="stat-card"><div class="stat-label">Tokens Remaining</div><div class="stat-value blue">{{ tenant.tokens_remaining }}</div><div class="stat-sub">of {{ tenant.tokens_total }} total</div></div>
+  <div class="stat-card"><div class="stat-label">Total Used</div><div class="stat-value">{{ total_tokens_used }}</div></div>
+  <div class="stat-card"><div class="stat-label">Team Size</div><div class="stat-value">{{ users|length }}</div></div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;">
+  <!-- Activate/Actions -->
+  <div class="card">
+    <div class="section-title" style="margin-bottom:16px;">Actions</div>
+    {% if tenant.status != 'active' %}
+    <form method="POST" action="{{ url_for('owner.activate_tenant', tenant_id=tenant.id) }}" style="margin-bottom:14px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div class="form-group"><label class="form-group" style="font-size:13px;color:var(--muted);">Plan</label>
+          <select name="plan" class="form-input"><option value="starter">Starter</option><option value="professional">Professional</option><option value="enterprise">Enterprise</option></select></div>
+        <div class="form-group"><label style="font-size:13px;color:var(--muted);">Tokens to Grant</label>
+          <input type="number" name="tokens" value="100" min="1" class="form-input"/></div>
+      </div>
+      <button type="submit" class="btn btn-success" style="width:100%;">✓ Activate Company</button>
+    </form>
+    {% else %}
+    <form method="POST" action="{{ url_for('owner.suspend_tenant', tenant_id=tenant.id) }}" style="margin-bottom:14px;">
+      <button type="submit" class="btn btn-danger" style="width:100%;" onclick="return confirm('Suspend {{ tenant.company_name }}?')">Suspend Company</button>
+    </form>
+    {% endif %}
+    <div class="divider"></div>
+    <div class="section-title" style="margin-bottom:12px;font-size:14px;">Top Up Tokens</div>
+    <form method="POST" action="{{ url_for('owner.topup_tokens', tenant_id=tenant.id) }}" style="display:flex;gap:10px;">
+      <input type="number" name="amount" placeholder="Amount" min="1" class="form-input"/>
+      <button type="submit" class="btn btn-primary">Add Tokens</button>
+    </form>
+  </div>
+  <!-- Subscription -->
+  <div class="card">
+    <div class="section-title" style="margin-bottom:16px;">Subscription</div>
+    {% if subscription %}
+    <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;">
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">Plan</span><span style="font-weight:600;">{{ subscription.plan_name|capitalize }}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">Monthly Price</span><span style="font-weight:600;">£{{ "%.2f"|format(subscription.monthly_price_gbp) }}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">Tokens/Month</span><span style="font-weight:600;">{{ subscription.tokens_per_month }}</span></div>
+      <div style="display:flex;justify-content:space-between;"><span style="color:var(--muted);">Renewal</span><span style="font-weight:600;">{{ subscription.renewal_date.strftime('%d %b %Y') if subscription.renewal_date else '—' }}</span></div>
+    </div>
+    {% else %}
+    <div class="empty-state"><div class="icon">💳</div><p>No subscription yet</p></div>
+    {% endif %}
+    <div class="divider"></div>
+    <button onclick="openModal('subModal')" class="btn btn-ghost" style="width:100%;font-size:13px;">{{ 'Update' if subscription else 'Add' }} Subscription</button>
+  </div>
+</div>
+<!-- Users -->
+<div class="card" style="margin-bottom:18px;">
+  <div class="section-title" style="margin-bottom:14px;">Team Members</div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Last Login</th></tr></thead>
+    <tbody>
+      {% for user in users %}
+      <tr>
+        <td style="font-weight:600;">{{ user.name }}</td>
+        <td style="color:var(--muted);">{{ user.email }}</td>
+        <td><span class="badge badge-blue">{{ user.role }}</span></td>
+        <td>{% if user.active %}<span class="badge badge-green">Active</span>{% else %}<span class="badge badge-amber">Pending</span>{% endif %}</td>
+        <td style="color:var(--muted);font-size:12px;">{{ user.last_login.strftime('%d %b %Y') if user.last_login else 'Never' }}</td>
+      </tr>
+      {% else %}<tr><td colspan="5" style="text-align:center;color:var(--muted);">No users</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+<!-- Recent Jobs -->
+<div class="card">
+  <div class="section-title" style="margin-bottom:14px;">Recent Jobs</div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Job ID</th><th>Tool</th><th>Items</th><th>Status</th><th>Date</th></tr></thead>
+    <tbody>
+      {% for job in jobs %}
+      <tr>
+        <td style="color:var(--muted);font-size:12px;">#{{ job.id }}</td>
+        <td>{{ job.tool.display_name if job.tool else '—' }}</td>
+        <td style="color:var(--muted);">{{ job.successful_items }}/{{ job.total_items }}</td>
+        <td>{% if job.status=='completed' %}<span class="badge badge-green">Done</span>{% elif job.status=='running' %}<span class="badge badge-blue">Running</span>{% elif job.status=='failed' %}<span class="badge badge-red">Failed</span>{% else %}<span class="badge badge-grey">Queued</span>{% endif %}</td>
+        <td style="color:var(--muted);font-size:12px;">{{ job.created_at.strftime('%d %b %Y %H:%M') }}</td>
+      </tr>
+      {% else %}<tr><td colspan="5" style="text-align:center;color:var(--muted);">No jobs yet</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+<!-- Subscription Modal -->
+<div class="modal-overlay" id="subModal">
+  <div class="modal"><button class="modal-close">✕</button>
+    <h3>{{ 'Update' if subscription else 'Add' }} Subscription</h3>
+    <form method="POST" action="{{ url_for('owner.add_subscription', tenant_id=tenant.id) }}">
+      <div class="form-group"><label>Plan Name</label><select name="plan" class="form-input"><option value="starter">Starter</option><option value="professional">Professional</option><option value="enterprise">Enterprise</option></select></div>
+      <div class="form-group"><label>Monthly Price (£)</label><input type="number" name="price" step="0.01" min="0" class="form-input" placeholder="e.g. 99.00" value="{{ '%.2f'|format(subscription.monthly_price_gbp) if subscription else '' }}"/></div>
+      <div class="form-group"><label>Tokens Per Month</label><input type="number" name="tokens" min="1" class="form-input" placeholder="e.g. 500" value="{{ subscription.tokens_per_month if subscription else '' }}"/></div>
+      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:6px;">Save Subscription</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
