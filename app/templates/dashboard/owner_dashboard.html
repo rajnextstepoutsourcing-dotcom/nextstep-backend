@@ -10,7 +10,7 @@
 <div class="sidebar-section">
   <div class="sidebar-section-label">Management</div>
   <a href="{{ url_for('owner.tenants') }}" class="sidebar-link"><span class="icon">🏢</span> Companies</a>
-  <a href="{{ url_for('owner.users') }}" class="sidebar-link">
+  <a href="{{ url_for('owner.approvals') }}" class="sidebar-link">
     <span class="icon">👥</span> Users
     {% if pending_users > 0 %}<span class="sidebar-badge">{{ pending_users }}</span>{% endif %}
   </a>
@@ -59,7 +59,7 @@
   <div class="card">
     <div class="section-head">
       <div><div class="section-title">Pending Approvals</div><div class="section-sub">New registrations awaiting activation</div></div>
-      <a href="{{ url_for('owner.users') }}" class="btn btn-ghost btn-sm">View all</a>
+      <a href="{{ url_for('owner.approvals') }}" class="btn btn-ghost btn-sm">View all</a>
     </div>
     {% if recent_registrations %}
     <div class="table-wrap">
@@ -73,8 +73,10 @@
             <td style="color:var(--muted);font-size:12px;">{{ user.created_at.strftime('%d %b %Y') }}</td>
             <td>
               {% if not user.active %}
-              <form method="POST" action="{{ url_for('owner.activate_user', user_id=user.id) }}" style="display:inline;">
-                <button type="submit" class="btn btn-success btn-sm">Activate</button>
+              <form method="POST" action="{{ url_for('owner.approve_registration', tenant_id=user.tenant.id) }}" style="display:flex;gap:6px;align-items:center;">
+                <input type="hidden" name="plan" value="starter">
+                <input type="hidden" name="tokens" value="100">
+                <button type="submit" class="btn btn-success btn-sm">Approve</button>
               </form>
               {% else %}
               <span class="badge badge-green">Active</span>

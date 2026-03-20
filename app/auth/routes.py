@@ -1,93 +1,92 @@
 import bcrypt
 import secrets
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_login import login_user, logout_user, login_required, current_user
-from app import db, mail
-from app.models import User, Tenant, PasswordResetToken, UserSession
 from flask import make_response
 from flask_mail import Message
+
+from app import db, mail
+from app.models import User, Tenant, PasswordResetToken, UserSession
 
 auth_bp = Blueprint('auth', __name__)
 
 
-# ── Login ────────────────────────────────────────────────────────────────────
+def _build_ns_token_response(user, destination, remember=False):
+    token_str = secrets.token_urlsafe(48)
+    expires_at = datetime.utcnow() + timedelta(days=7)
+
+    UserSession.query.filter_by(user_id=user.id).delete()
+    session_record = UserSession(user_id=user.id, token=token_str, expires_at=expires_at)
+    db.session.add(session_record)
+    db.session.commit()
+
+    response = make_response(destination)
+    cookie_kwargs = dict(
+        httponly=True,
+        samesite='None' if current_app.config.get('SESSION_COOKIE_SECURE') else 'Lax',
+        secure=current_app.config.get('SESSION_COOKIE_SECURE', False),
+        max_age=60 * 60 * 24 * 7,
+        path='/'
+    )
+    cookie_domain = current_app.config.get('COOKIE_DOMAIN')
+    if cookie_domain:
+        cookie_kwargs['domain'] = cookie_domain
+
+    response.set_cookie('ns_token', token_str, **cookie_kwargs)
+    return response
+
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         return _redirect_by_role(current_user)
 
     if request.method == 'POST':
-        email    = request.form.get('email', '').strip().lower()
+        email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '')
         remember = request.form.get('remember') == 'on'
 
         user = User.query.filter_by(email=email).first()
 
-        # Check credentials
         if not user or not bcrypt.checkpw(password.encode('utf-8'), user.password_hash.encode('utf-8')):
             flash('Invalid email or password.', 'error')
             return render_template('auth/login.html')
 
-        # Check account is active
         if not user.active:
             flash('Your account is pending approval. We will notify you by email once activated.', 'warning')
             return render_template('auth/login.html')
 
-        # Log in
+        if user.tenant and user.tenant.status != 'active':
+            flash('Your company account is not active yet. Please contact NextStep support.', 'warning')
+            return render_template('auth/login.html')
+
         login_user(user, remember=remember)
         user.last_login = datetime.utcnow()
         db.session.commit()
 
-        # Generate ns_token for tool authentication
-        token_str  = secrets.token_urlsafe(48)
-        expires_at = datetime.utcnow() + timedelta(days=7)
-
-        # Remove old sessions for this user
-        UserSession.query.filter_by(user_id=user.id).delete()
-
-        session_record = UserSession(
-            user_id=user.id,
-            token=token_str,
-            expires_at=expires_at
-        )
-        db.session.add(session_record)
-        db.session.commit()
-
         next_page = request.args.get('next')
         dest = redirect(next_page) if next_page else _redirect_by_role(user)
-        response = make_response(dest)
-        response.set_cookie(
-            'ns_token',
-            token_str,
-            httponly=True,
-            samesite='None',
-            secure=True,
-            max_age=60 * 60 * 24 * 7
-        )
-        return response
+        return _build_ns_token_response(user, dest, remember=remember)
 
     return render_template('auth/login.html')
 
 
-# ── Logout ───────────────────────────────────────────────────────────────────
 @auth_bp.route('/logout')
 @login_required
 def logout():
-    # Clear tool session token
     try:
         UserSession.query.filter_by(user_id=current_user.id).delete()
         db.session.commit()
     except Exception:
-        pass
+        db.session.rollback()
     logout_user()
     response = make_response(redirect(url_for('auth.login')))
-    response.delete_cookie('ns_token')
+    response.delete_cookie('ns_token', path='/')
     flash('You have been logged out.', 'info')
     return response
 
 
-# ── Register ─────────────────────────────────────────────────────────────────
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
@@ -95,14 +94,14 @@ def register():
 
     if request.method == 'POST':
         full_name = request.form.get('full_name', '').strip()
-        company   = request.form.get('company', '').strip()
-        email     = request.form.get('email', '').strip().lower()
-        phone     = request.form.get('phone', '').strip()
-        password  = request.form.get('password', '')
-        confirm   = request.form.get('confirm_password', '')
-        tools     = request.form.getlist('tools')
+        company = request.form.get('company', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        phone = request.form.get('phone', '').strip()
+        password = request.form.get('password', '')
+        confirm = request.form.get('confirm_password', '')
+        tools = request.form.getlist('tools')
+        requested_tools = ', '.join(tools)
 
-        # Validation
         if not all([full_name, company, email, phone, password, confirm]):
             flash('Please fill in all required fields.', 'error')
             return render_template('auth/register.html')
@@ -119,22 +118,17 @@ def register():
             flash('An account with that email already exists.', 'error')
             return render_template('auth/register.html')
 
-        # Create tenant
-        tenant = Tenant(
-            company_name=company,
-            status='pending',
-            plan_name='pending',
-            tokens_total=0
-        )
+        tenant = Tenant(company_name=company, status='pending', plan_name='pending', tokens_total=0)
         db.session.add(tenant)
         db.session.flush()
 
-        # Create user (inactive until owner approves)
         pw_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
         user = User(
             tenant_id=tenant.id,
             name=full_name,
             email=email,
+            phone=phone,
+            requested_tools=requested_tools,
             password_hash=pw_hash,
             role='admin',
             active=False
@@ -142,7 +136,6 @@ def register():
         db.session.add(user)
         db.session.commit()
 
-        # Notify owner by email
         _notify_owner_new_registration(full_name, company, email, phone, tools)
 
         flash('Registration submitted! We will review and activate your account within one business day.', 'success')
@@ -151,29 +144,19 @@ def register():
     return render_template('auth/register.html')
 
 
-# ── Forgot Password ───────────────────────────────────────────────────────────
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
-        user  = User.query.filter_by(email=email).first()
+        user = User.query.filter_by(email=email).first()
 
-        # Always show success (don't reveal if email exists)
         if user and user.active:
-            token_str  = secrets.token_urlsafe(48)
+            token_str = secrets.token_urlsafe(48)
             expires_at = datetime.utcnow() + timedelta(hours=2)
-
-            # Invalidate old tokens
             PasswordResetToken.query.filter_by(user_id=user.id, used=False).delete()
-
-            reset_token = PasswordResetToken(
-                user_id=user.id,
-                token=token_str,
-                expires_at=expires_at
-            )
+            reset_token = PasswordResetToken(user_id=user.id, token=token_str, expires_at=expires_at)
             db.session.add(reset_token)
             db.session.commit()
-
             reset_url = url_for('auth.reset_password', token=token_str, _external=True)
             _send_reset_email(user.email, user.name, reset_url)
 
@@ -183,7 +166,6 @@ def forgot_password():
     return render_template('auth/forgot_password.html')
 
 
-# ── Reset Password ────────────────────────────────────────────────────────────
 @auth_bp.route('/reset-password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
     reset_token = PasswordResetToken.query.filter_by(token=token, used=False).first()
@@ -194,7 +176,7 @@ def reset_password(token):
 
     if request.method == 'POST':
         password = request.form.get('password', '')
-        confirm  = request.form.get('confirm_password', '')
+        confirm = request.form.get('confirm_password', '')
 
         if len(password) < 8:
             flash('Password must be at least 8 characters.', 'error')
@@ -215,7 +197,6 @@ def reset_password(token):
     return render_template('auth/reset_password.html', token=token)
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
 def _redirect_by_role(user):
     if user.role == 'owner':
         return redirect(url_for('owner.dashboard'))
@@ -224,10 +205,7 @@ def _redirect_by_role(user):
 
 def _send_reset_email(to_email, name, reset_url):
     try:
-        msg = Message(
-            subject='NextStep — Password Reset Request',
-            recipients=[to_email]
-        )
+        msg = Message(subject='NextStep — Password Reset Request', recipients=[to_email])
         msg.body = f"""Hi {name},
 
 You requested a password reset for your NextStep account.
@@ -248,10 +226,7 @@ def _notify_owner_new_registration(name, company, email, phone, tools):
     import os
     owner_email = os.environ.get('OWNER_EMAIL', 'raj.nextstepoutsourcing@gmail.com')
     try:
-        msg = Message(
-            subject=f'NextStep — New Registration: {company}',
-            recipients=[owner_email]
-        )
+        msg = Message(subject=f'NextStep — New Registration: {company}', recipients=[owner_email])
         msg.body = f"""New registration request on NextStep:
 
 Name:    {name}
@@ -261,7 +236,7 @@ Phone:   {phone}
 Tools:   {', '.join(tools) if tools else 'Not specified'}
 
 Log in to your owner dashboard to review and activate this account:
-https://nextstep.co.uk/owner/dashboard
+{url_for('owner.approvals', _external=True)}
 
 — NextStep System
 """

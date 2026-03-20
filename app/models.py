@@ -52,6 +52,8 @@ class User(UserMixin, db.Model):
     role          = db.Column(db.String(50), default='staff')   # owner, admin, staff, viewer
     active        = db.Column(db.Boolean, default=False)        # False until approved
     last_login    = db.Column(db.DateTime, nullable=True)
+    phone         = db.Column(db.String(50), nullable=True)
+    requested_tools = db.Column(db.Text, nullable=True)
     created_at    = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships

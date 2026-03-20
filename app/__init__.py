@@ -1,5 +1,6 @@
 import os
 from flask import Flask
+from sqlalchemy import text
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_mail import Mail
@@ -31,6 +32,12 @@ def create_app():
     app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
     app.config['PERMANENT_SESSION_LIFETIME'] = 86400 * 7  # 7 days
 
+    # ── Tool launch URLs (free Render testing) ─────────────────
+    app.config['TOOL_URL_NMC'] = os.environ.get('TOOL_URL_NMC', 'https://nmc-multiple.onrender.com')
+    app.config['TOOL_URL_DBS'] = os.environ.get('TOOL_URL_DBS', 'https://dbs-webapp-v2.onrender.com')
+    app.config['TOOL_URL_RTW'] = os.environ.get('TOOL_URL_RTW', 'https://rtw-live.onrender.com')
+    app.config['TOOL_URL_CHECKLIST'] = os.environ.get('TOOL_URL_CHECKLIST', 'https://checklist-webapp.onrender.com')
+
     # ── Mail config ──────────────────────────────────────────
     app.config['MAIL_SERVER']          = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
     app.config['MAIL_PORT']            = int(os.environ.get('MAIL_PORT', 587))
@@ -60,6 +67,7 @@ def create_app():
     # ── Create tables + seed owner ───────────────────────────
     with app.app_context():
         db.create_all()
+        _ensure_schema_updates()
         _seed_owner()
         _seed_tools()
 
@@ -136,3 +144,18 @@ def _seed_tools():
     if changed:
         db.session.commit()
         print('[NextStep] Tools table seeded.')
+
+
+def _ensure_schema_updates():
+    """Lightweight production-safe schema updates for columns added after first deploy."""
+    statements = [
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS requested_tools TEXT",
+    ]
+    try:
+        for stmt in statements:
+            db.session.execute(text(stmt))
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        print(f'[NextStep] Schema update skipped/failed: {exc}')

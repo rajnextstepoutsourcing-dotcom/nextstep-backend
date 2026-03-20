@@ -55,9 +55,10 @@ def dashboard():
         .order_by(Job.created_at.desc())\
         .limit(10).all()
 
-    # Recent registrations
+    # Recent pending registrations
     recent_registrations = User.query.filter(
-        User.role != 'owner'
+        User.role != 'owner',
+        User.active.is_(False)
     ).order_by(User.created_at.desc()).limit(5).all()
 
     return render_template('dashboard/owner_dashboard.html',
@@ -179,6 +180,7 @@ def topup_tokens(tenant_id):
 def users():
     search = request.args.get('search', '').strip()
     role   = request.args.get('role', '')
+    status = request.args.get('status', '')
     page   = request.args.get('page', 1, type=int)
 
     query = User.query.filter(User.role != 'owner')
@@ -188,15 +190,93 @@ def users():
         )
     if role:
         query = query.filter_by(role=role)
+    if status == 'pending':
+        query = query.filter(User.active.is_(False))
+    elif status == 'active':
+        query = query.filter(User.active.is_(True))
 
     users_page = query.order_by(User.created_at.desc()).paginate(page=page, per_page=25, error_out=False)
 
     return render_template('dashboard/owner_users.html',
         users=users_page,
         search=search,
-        role_filter=role
+        role_filter=role,
+        status_filter=status
     )
 
+
+
+
+# ── Pending approvals ──────────────────────────────────────────────────────
+@owner_bp.route('/approvals')
+@login_required
+@owner_required
+def approvals():
+    page = request.args.get('page', 1, type=int)
+    search = request.args.get('search', '').strip()
+
+    query = User.query.join(Tenant, User.tenant_id == Tenant.id).filter(
+        User.role != 'owner',
+        User.active.is_(False),
+        Tenant.plan_name != 'owner'
+    )
+    if search:
+        query = query.filter((User.name.ilike(f'%{search}%')) | (User.email.ilike(f'%{search}%')) | (Tenant.company_name.ilike(f'%{search}%')))
+
+    users_page = query.order_by(User.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
+    return render_template('dashboard/owner_users.html', users=users_page, search=search, role_filter='', status_filter='pending', approvals_mode=True)
+
+
+@owner_bp.route('/approvals/<int:tenant_id>/approve', methods=['POST'])
+@login_required
+@owner_required
+def approve_registration(tenant_id):
+    tenant = Tenant.query.get_or_404(tenant_id)
+    tokens = max(request.form.get('tokens', 100, type=int), 0)
+    plan = request.form.get('plan', 'starter').strip() or 'starter'
+
+    tenant.status = 'active'
+    tenant.plan_name = plan
+    tenant.tokens_total = tokens
+    if tenant.tokens_used > tenant.tokens_total:
+        tenant.tokens_used = tenant.tokens_total
+
+    admin_users = User.query.filter_by(tenant_id=tenant.id).all()
+    for user in admin_users:
+        if user.role in ('admin', 'staff', 'viewer'):
+            user.active = True
+
+    existing = Subscription.query.filter_by(tenant_id=tenant.id).first()
+    if not existing:
+        existing = Subscription(tenant_id=tenant.id)
+        db.session.add(existing)
+    existing.plan_name = plan
+    existing.status = 'active'
+    existing.tokens_per_month = tokens
+    existing.monthly_price_gbp = existing.monthly_price_gbp or 0.0
+    existing.billing_cycle_start = existing.billing_cycle_start or datetime.utcnow()
+    existing.renewal_date = datetime.utcnow() + timedelta(days=30)
+
+    db.session.commit()
+    flash(f'{tenant.company_name} approved and activated with {tokens} tokens.', 'success')
+    return redirect(url_for('owner.approvals'))
+
+
+@owner_bp.route('/approvals/<int:tenant_id>/reject', methods=['POST'])
+@login_required
+@owner_required
+def reject_registration(tenant_id):
+    tenant = Tenant.query.get_or_404(tenant_id)
+    users = User.query.filter_by(tenant_id=tenant.id).all()
+    for user in users:
+        db.session.delete(user)
+    sub = Subscription.query.filter_by(tenant_id=tenant.id).first()
+    if sub:
+        db.session.delete(sub)
+    db.session.delete(tenant)
+    db.session.commit()
+    flash('Registration request rejected and removed.', 'warning')
+    return redirect(url_for('owner.approvals'))
 
 # ── Activate single user ──────────────────────────────────────────────────────
 @owner_bp.route('/users/<int:user_id>/activate', methods=['POST'])
@@ -205,6 +285,11 @@ def users():
 def activate_user(user_id):
     user = User.query.get_or_404(user_id)
     user.active = True
+    if user.tenant and user.tenant.status == 'pending':
+        user.tenant.status = 'active'
+        user.tenant.plan_name = user.tenant.plan_name if user.tenant.plan_name != 'pending' else 'starter'
+        if user.tenant.tokens_total == 0:
+            user.tenant.tokens_total = 100
     db.session.commit()
     flash(f'{user.name} activated.', 'success')
     return redirect(url_for('owner.users'))

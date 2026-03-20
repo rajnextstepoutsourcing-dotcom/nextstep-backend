@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Users — NextStep{% endblock %}
-{% block page_title %}Users{% endblock %}
+{% block page_title %}{% if approvals_mode %}Pending Approvals{% else %}Users{% endif %}{% endblock %}
 {% block sidebar_nav %}
 <div class="sidebar-section"><a href="/owner/dashboard" class="sidebar-link"><span class="icon">📊</span> Dashboard</a></div>
 <div class="sidebar-section"><div class="sidebar-section-label">Management</div>
 <a href="/owner/tenants" class="sidebar-link"><span class="icon">🏢</span> Companies</a>
-<a href="/owner/users" class="sidebar-link active"><span class="icon">👥</span> Users</a>
+<a href="/owner/approvals" class="sidebar-link {% if approvals_mode %}active{% endif %}"><span class="icon">📝</span> Approvals</a>
+<a href="/owner/users" class="sidebar-link {% if not approvals_mode %}active{% endif %}"><span class="icon">👥</span> Users</a>
 <a href="/owner/jobs" class="sidebar-link"><span class="icon">⚙️</span> Jobs</a></div>
 <div class="sidebar-section"><div class="sidebar-section-label">Finance</div>
 <a href="/owner/usage" class="sidebar-link"><span class="icon">🪙</span> Token Usage</a>
@@ -16,39 +17,54 @@
 {% endblock %}
 {% block content %}
 <div class="card" style="margin-bottom:18px;">
-  <form method="GET" style="display:flex;gap:10px;flex-wrap:wrap;">
-    <input name="search" value="{{ search }}" placeholder="Search name or email..." class="form-input" style="max-width:280px;"/>
+  <form method="GET" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+    <input name="search" value="{{ search }}" placeholder="Search name, email, or company..." class="form-input" style="max-width:280px;"/>
+    {% if not approvals_mode %}
     <select name="role" class="form-input" style="max-width:150px;">
       <option value="">All roles</option>
       <option value="admin" {% if role_filter=='admin' %}selected{% endif %}>Admin</option>
       <option value="staff" {% if role_filter=='staff' %}selected{% endif %}>Staff</option>
       <option value="viewer" {% if role_filter=='viewer' %}selected{% endif %}>Viewer</option>
     </select>
+    <select name="status" class="form-input" style="max-width:150px;">
+      <option value="">All status</option>
+      <option value="pending" {% if status_filter=='pending' %}selected{% endif %}>Pending</option>
+      <option value="active" {% if status_filter=='active' %}selected{% endif %}>Active</option>
+    </select>
+    {% endif %}
     <button type="submit" class="btn btn-primary">Filter</button>
-    <a href="/owner/users" class="btn btn-ghost">Clear</a>
+    <a href="{{ '/owner/approvals' if approvals_mode else '/owner/users' }}" class="btn btn-ghost">Clear</a>
   </form>
 </div>
 <div class="card">
   <div class="table-wrap"><table>
-    <thead><tr><th>Name</th><th>Email</th><th>Company</th><th>Role</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>
+    <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Company</th><th>Requested Tools</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>
     <tbody>
       {% for user in users.items %}
       <tr>
         <td style="font-weight:600;">{{ user.name }}</td>
         <td style="color:var(--muted);font-size:13px;">{{ user.email }}</td>
+        <td style="color:var(--muted);font-size:13px;">{{ user.phone or '—' }}</td>
         <td style="color:var(--muted);">{{ user.tenant.company_name }}</td>
-        <td><span class="badge badge-blue">{{ user.role }}</span></td>
+        <td style="color:var(--muted);font-size:12px;">{{ user.requested_tools or '—' }}</td>
         <td>{% if user.active %}<span class="badge badge-green">Active</span>{% else %}<span class="badge badge-amber">Pending</span>{% endif %}</td>
         <td style="color:var(--muted);font-size:12px;">{{ user.created_at.strftime('%d %b %Y') }}</td>
-        <td style="display:flex;gap:6px;">
+        <td>
           {% if not user.active %}
-          <form method="POST" action="/owner/users/{{ user.id }}/activate"><button type="submit" class="btn btn-success btn-sm">Activate</button></form>
+          <form method="POST" action="/owner/approvals/{{ user.tenant.id }}/approve" style="display:grid;grid-template-columns:110px 100px auto auto;gap:6px;align-items:center;">
+            <select name="plan" class="form-input" style="min-width:110px;padding:8px 10px;"><option value="starter">Starter</option><option value="professional">Professional</option><option value="enterprise">Enterprise</option></select>
+            <input type="number" name="tokens" value="100" min="0" class="form-input" style="width:100px;padding:8px 10px;"/>
+            <button type="submit" class="btn btn-success btn-sm">Approve</button>
+          </form>
+          <form method="POST" action="/owner/approvals/{{ user.tenant.id }}/reject" style="margin-top:6px;">
+            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Reject this registration request?')">Reject</button>
+          </form>
           {% else %}
           <form method="POST" action="/owner/users/{{ user.id }}/deactivate"><button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Deactivate?')">Deactivate</button></form>
           {% endif %}
         </td>
       </tr>
-      {% else %}<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:32px;">No users found</td></tr>
+      {% else %}<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:32px;">No users found</td></tr>
       {% endfor %}
     </tbody>
   </table></div>
