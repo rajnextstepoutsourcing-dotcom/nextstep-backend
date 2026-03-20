@@ -168,3 +168,19 @@ class PasswordResetToken(db.Model):
 
     def __repr__(self):
         return f'<PasswordResetToken user={self.user_id}>'
+
+
+# ── User Session (tool auth tokens) ──────────────────────────────────────────
+class UserSession(db.Model):
+    __tablename__ = 'user_sessions'
+
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    token      = db.Column(db.String(200), unique=True, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user       = db.relationship('User', backref='sessions')
+
+    def __repr__(self):
+        return f'<UserSession user={self.user_id}>'

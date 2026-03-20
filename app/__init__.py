@@ -61,6 +61,7 @@ def create_app():
     with app.app_context():
         db.create_all()
         _seed_owner()
+        _seed_tools()
 
     return app
 
@@ -102,3 +103,36 @@ def _seed_owner():
     db.session.add(owner)
     db.session.commit()
     print(f'[NextStep] Owner account created: {owner_email}')
+
+    # Seed tools table
+    from app.models import Tool
+    tools_data = [
+        {'slug': 'nmc',       'display_name': 'NMC Check',     'token_cost': 1},
+        {'slug': 'dbs',       'display_name': 'DBS Check',     'token_cost': 1},
+        {'slug': 'rtw',       'display_name': 'Right to Work', 'token_cost': 1},
+        {'slug': 'checklist', 'display_name': 'Checklist',     'token_cost': 1},
+    ]
+    for t in tools_data:
+        if not Tool.query.filter_by(slug=t['slug']).first():
+            db.session.add(Tool(**t))
+    db.session.commit()
+    print('[NextStep] Tools table seeded.')
+
+
+def _seed_tools():
+    """Ensure all tool rows exist in the tools table. Safe to run every startup."""
+    from app.models import Tool
+    tools_data = [
+        {'slug': 'nmc',       'display_name': 'NMC Check',     'token_cost': 1},
+        {'slug': 'dbs',       'display_name': 'DBS Check',     'token_cost': 1},
+        {'slug': 'rtw',       'display_name': 'Right to Work', 'token_cost': 1},
+        {'slug': 'checklist', 'display_name': 'Checklist',     'token_cost': 1},
+    ]
+    changed = False
+    for t in tools_data:
+        if not Tool.query.filter_by(slug=t['slug']).first():
+            db.session.add(Tool(**t))
+            changed = True
+    if changed:
+        db.session.commit()
+        print('[NextStep] Tools table seeded.')

@@ -4,7 +4,8 @@ from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from flask_login import login_user, logout_user, login_required, current_user
 from app import db, mail
-from app.models import User, Tenant, PasswordResetToken
+from app.models import User, Tenant, PasswordResetToken, UserSession
+from flask import make_response
 from flask_mail import Message
 
 auth_bp = Blueprint('auth', __name__)
@@ -38,10 +39,33 @@ def login():
         user.last_login = datetime.utcnow()
         db.session.commit()
 
+        # Generate ns_token for tool authentication
+        token_str  = secrets.token_urlsafe(48)
+        expires_at = datetime.utcnow() + timedelta(days=7)
+
+        # Remove old sessions for this user
+        UserSession.query.filter_by(user_id=user.id).delete()
+
+        session_record = UserSession(
+            user_id=user.id,
+            token=token_str,
+            expires_at=expires_at
+        )
+        db.session.add(session_record)
+        db.session.commit()
+
         next_page = request.args.get('next')
-        if next_page:
-            return redirect(next_page)
-        return _redirect_by_role(user)
+        dest = redirect(next_page) if next_page else _redirect_by_role(user)
+        response = make_response(dest)
+        response.set_cookie(
+            'ns_token',
+            token_str,
+            httponly=True,
+            samesite='None',
+            secure=True,
+            max_age=60 * 60 * 24 * 7
+        )
+        return response
 
     return render_template('auth/login.html')
 
@@ -50,9 +74,17 @@ def login():
 @auth_bp.route('/logout')
 @login_required
 def logout():
+    # Clear tool session token
+    try:
+        UserSession.query.filter_by(user_id=current_user.id).delete()
+        db.session.commit()
+    except Exception:
+        pass
     logout_user()
+    response = make_response(redirect(url_for('auth.login')))
+    response.delete_cookie('ns_token')
     flash('You have been logged out.', 'info')
-    return redirect(url_for('auth.login'))
+    return response
 
 
 # ── Register ─────────────────────────────────────────────────────────────────
