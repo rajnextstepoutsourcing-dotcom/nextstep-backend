@@ -18,10 +18,8 @@ def _warm_tool_service(target: str, token: str | None = None, timeout: float = 2
     if not target or requests is None:
         return
     try:
-        headers = {}
-        if token:
-            headers['X-NextStep-Token'] = token
-        requests.get(target.rstrip('/'), headers=headers, timeout=timeout, allow_redirects=True)
+        warm_target = f"{target.rstrip('/')}/health"
+        requests.get(warm_target, timeout=timeout, allow_redirects=True)
     except Exception:
         pass
 
