@@ -1,4 +1,10 @@
 from flask import Blueprint, render_template, redirect, url_for, current_app, request, flash
+import threading
+
+try:
+    import requests
+except Exception:
+    requests = None
 from flask_login import login_required, current_user
 from datetime import datetime
 from app import db
@@ -6,6 +12,18 @@ from app.models import Job, UsageRecord, User, UserSession
 from sqlalchemy import func
 
 dashboard_bp = Blueprint('dashboard', __name__)
+
+
+def _warm_tool_service(target: str, token: str | None = None, timeout: float = 2.5):
+    if not target or requests is None:
+        return
+    try:
+        headers = {}
+        if token:
+            headers['X-NextStep-Token'] = token
+        requests.get(target.rstrip('/'), headers=headers, timeout=timeout, allow_redirects=True)
+    except Exception:
+        pass
 
 
 def _tool_url_map():
@@ -77,6 +95,16 @@ def launch_tool(tool_slug):
         flash('Your login session expired. Please log in again.', 'warning')
         return redirect(url_for('auth.logout'))
 
+    target = (target or '').strip()
+    if not target:
+        flash('Tool launch URL is not configured.', 'error')
+        return redirect(url_for('dashboard.index'))
     separator = '&' if '?' in target else '?'
-    launch_url = f"{target}{separator}ns_token={token}"
+    launch_url = f"{target.rstrip('/')}{separator}ns_token={token}" if '?' not in target else f"{target}{separator}ns_token={token}"
+    if tool_slug == 'checklist':
+        try:
+            timeout = float(current_app.config.get('TOOL_WARMUP_TIMEOUT_SECONDS', 2.5))
+            threading.Thread(target=_warm_tool_service, args=(target, token, timeout), daemon=True, name='warm-checklist-tool').start()
+        except Exception:
+            pass
     return redirect(launch_url)

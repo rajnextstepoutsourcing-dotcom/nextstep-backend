@@ -36,7 +36,8 @@ def create_app():
     app.config['TOOL_URL_NMC'] = os.environ.get('TOOL_URL_NMC', 'https://nmc-multiple.onrender.com')
     app.config['TOOL_URL_DBS'] = os.environ.get('TOOL_URL_DBS', 'https://dbs-webapp-v2.onrender.com')
     app.config['TOOL_URL_RTW'] = os.environ.get('TOOL_URL_RTW', 'https://rtw-live.onrender.com')
-    app.config['TOOL_URL_CHECKLIST'] = os.environ.get('TOOL_URL_CHECKLIST', 'https://checklist-webapp.onrender.com')
+    app.config['TOOL_URL_CHECKLIST'] = os.environ.get('TOOL_URL_CHECKLIST', 'https://checklist-webapp-z3nz.onrender.com')  # checklist service root
+    app.config['TOOL_WARMUP_TIMEOUT_SECONDS'] = float(os.environ.get('TOOL_WARMUP_TIMEOUT_SECONDS', '2.5'))
 
     # ── Mail config ──────────────────────────────────────────
     app.config['MAIL_SERVER']          = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
@@ -70,6 +71,9 @@ def create_app():
         _ensure_schema_updates()
         _seed_owner()
         _seed_tools()
+
+    from app.api.routes import api_bp
+    app.register_blueprint(api_bp)
 
     return app
 
@@ -159,3 +163,4 @@ def _ensure_schema_updates():
     except Exception as exc:
         db.session.rollback()
         print(f'[NextStep] Schema update skipped/failed: {exc}')
+
